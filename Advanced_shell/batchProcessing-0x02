@@ -1,8 +1,9 @@
-#!/bin/bash
+#!/bin/bash#!/bin/bash
 
-POKEMON_LIST=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
-
+POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 API_URL="https://pokeapi.co/api/v2/pokemon"
+LOG_FILE="errors.log"
+
 
 for pokemon in "${POKEMON_LIST[@]}"; do
     echo "Fetching data for $pokemon..."
@@ -18,7 +19,7 @@ for pokemon in "${POKEMON_LIST[@]}"; do
         continue
     fi
 
-    # This validates JSON
+    # Validate JSON
     if ! jq empty "$OUTPUT_FILE" 2>/dev/null; then
         echo "Error: Invalid JSON for $pokemon" >> errors.txt
         continue
@@ -26,8 +27,47 @@ for pokemon in "${POKEMON_LIST[@]}"; do
 
     echo "Saved to $OUTPUT_FILE"
 
-    # This line delays to avoid rate limiting
+    # Delay to avoid rate limiting
     sleep 1
 done
 
 echo "Done!"
+
+
+
+# Clear previous log
+> "$LOG_FILE"
+
+for pokemon in "${POKEMONS[@]}"; do
+    echo "Fetching data for $pokemon..."
+
+    retries=0
+    success=false
+
+    while [ $retries -lt 3 ]; do
+        response=$(curl -s -w "%{http_code}" -o "${pokemon}.json" "$API_URL/$pokemon")
+
+        http_code=${response:(-3)}  # last 3 chars = HTTP status code
+
+        # If success (HTTP 200)
+        if [ "$http_code" -eq 200 ]; then
+            echo "$pokemon fetched successfully!"
+            success=true
+            break
+        else
+            retries=$((retries + 1))
+            echo "Attempt $retries for $pokemon failed (HTTP $http_code). Retrying..."
+            sleep 2
+        fi
+    done
+
+    # If failed after 3 attempts
+    if [ "$success" = false ]; then
+        echo "Failed to fetch $pokemon after 3 attempts." | tee -a "$LOG_FILE"
+    fi
+
+    # Anti-rate limit delay
+    sleep 1
+done
+
+echo "Done. Check errors.log if any Pokémon failed."
