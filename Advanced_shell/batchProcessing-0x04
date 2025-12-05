@@ -2,41 +2,35 @@
 
 POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 API_URL="https://pokeapi.co/api/v2/pokemon"
-LOG_FILE="errors.log"
+LOG_FILE="parallel_errors.log"
 
-# Clear previous log
+# Clear old log
 > "$LOG_FILE"
 
-for pokemon in "${POKEMONS[@]}"; do
-    echo "Fetching data for $pokemon..."
+fetch_pokemon() {
+    pokemon=$1
+    echo "Fetching $pokemon..."
 
-    retries=0
-    success=false
+    response=$(curl -s -w "%{http_code}" -o "${pokemon}.json" "$API_URL/$pokemon")
+    http_code=${response:(-3)}
 
-    while [ $retries -lt 3 ]; do
-        response=$(curl -s -w "%{http_code}" -o "${pokemon}.json" "$API_URL/$pokemon")
-
-        http_code=${response:(-3)}  # last 3 chars = HTTP status code
-
-        # If success (HTTP 200)
-        if [ "$http_code" -eq 200 ]; then
-            echo "$pokemon fetched successfully!"
-            success=true
-            break
-        else
-            retries=$((retries + 1))
-            echo "Attempt $retries for $pokemon failed (HTTP $http_code). Retrying..."
-            sleep 2
-        fi
-    done
-
-    # If failed after 3 attempts
-    if [ "$success" = false ]; then
-        echo "Failed to fetch $pokemon after 3 attempts." | tee -a "$LOG_FILE"
+    if [ "$http_code" -eq 200 ]; then
+        echo "$pokemon fetched successfully!"
+    else
+        echo "Error fetching $pokemon (HTTP $http_code)" | tee -a "$LOG_FILE"
     fi
+}
 
-    # Anti-rate limit delay
-    sleep 1
+# PARALLEL EXECUTION
+
+echo "Starting parallel Pokémon fetch..."
+
+for pokemon in "${POKEMONS[@]}"; do
+    fetch_pokemon "$pokemon" &
 done
 
-echo "Done. Check errors.log if any Pokémon failed."
+echo "Waiting for all background jobs..."
+wait   # This waits for all fetch_pokemon processes
+
+echo "All fetch operations completed!"
+echo "Check parallel_errors.log for any failures."
