@@ -8,14 +8,14 @@ height=$(jq -r '.height' "$JSON_FILE")
 weight=$(jq -r '.weight' "$JSON_FILE")
 type=$(jq -r '.types[0].type.name' "$JSON_FILE")
 
-# This convert height (decimeters → meters): 4 → 0.4
-height_m=$(echo "$height" | awk '{printf "%.1f", $1/10}')
+# Convert height (decimeters → meters): 4 → 0.4
+formatted_height=$(echo "$height" | awk '{printf "%.1f", $1/10}')
 
-# This convert weight (hectograms → kg): 60 → 6
-weight_kg=$(echo "$weight" | awk '{printf "%.0f", $1/10}')
+# Convert weight (hectograms → kg): 60 → 6
+formatted_weight=$(echo "$weight" | awk '{printf "%.0f", $1/10}')
 
-# This capitalize the first letter of the type using sed
-type_cap=$(echo "$type" | sed 's/^\(.\)/\U\1/')
+# Capitalize the first letter of the type using sed
+type=$(echo "$type" | sed 's/^\(.\)/\U\1/')
 
-# Format final output
-echo "$name is of type $type_cap, weighs ${weight_kg}kg, and is ${height_m}m tall."
+# Required EXACT output format
+echo "$name is of type $type, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
